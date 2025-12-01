@@ -4,6 +4,8 @@ import com.pm.patientService.dto.PatientRequestDTO;
 import com.pm.patientService.dto.PatientResponseDTO;
 import com.pm.patientService.exception.EmailAlreadyExistsException;
 import com.pm.patientService.exception.PatientNotFoundException;
+import com.pm.patientService.grpc.BillingServiceGrpcClient;
+import com.pm.patientService.kafka.KafkaProducer;
 import com.pm.patientService.mapper.PatientMapper;
 import com.pm.patientService.model.Patient;
 import com.pm.patientService.repository.PatientRepository;
@@ -17,9 +19,17 @@ import java.util.UUID;
 @Service
 public class PatientService {
     private PatientRepository patientRepository;
+    private final BillingServiceGrpcClient billingServiceGrpcClient;
+    private final KafkaProducer kafkaProducer;
 
-    public PatientService(PatientRepository patientRepository) {
+    public PatientService(
+            PatientRepository patientRepository,
+            BillingServiceGrpcClient billingServiceGrpcClient,
+            KafkaProducer kafkaProducer
+    ) {
         this.patientRepository = patientRepository;
+        this.billingServiceGrpcClient = billingServiceGrpcClient;
+        this.kafkaProducer = kafkaProducer;
     }
 
     public List<PatientResponseDTO> getPatients(){
@@ -36,6 +46,13 @@ public class PatientService {
 
         Patient newPatient = PatientMapper.toPatientModel(patientRequestDTO);
         patientRepository.save(newPatient);
+
+        //Autmatically create billing account relevent to this particular user - using gRPC request
+        billingServiceGrpcClient.createBillingAccount(newPatient.getId().toString(), newPatient.getName(), newPatient.getEmail());
+
+        //Now send This create user event to the kafka broker inside the kafka Topic = 'patient'
+        kafkaProducer.sendEvent(newPatient);
+
         return PatientMapper.toPatientResponseDTO(newPatient);
     }
 
