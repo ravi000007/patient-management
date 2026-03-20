@@ -70,11 +70,6 @@ This system is designed using a **microservices architecture**, where each servi
 ### Step 1: Clone the repository
 ### Step 2: Start services
 
-
-### Step 3: Access services
-- API Gateway → http://localhost:8080
-- Swagger Docs → http://localhost:8080/swagger-ui.html
-
 ---
 
 ## 🧪 Testing
